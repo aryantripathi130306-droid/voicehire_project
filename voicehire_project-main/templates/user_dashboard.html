@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Customer Dashboard - VoiceHire</title>
+    <meta name="description" content="Find local workers and post job requests on VoiceHire.">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#000000",
+                        "secondary": "#00668a",
+                        "background": "#f7f9fb",
+                        "surface": "#ffffff",
+                        "on-surface": "#191c1e",
+                        "on-surface-variant": "#45464d",
+                        "outline-variant": "#c6c6cd"
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1.5px solid #e0e3e5;
+        }
+        .worker-card { transition: all 0.2s ease; }
+        .worker-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -10px rgba(0,0,0,0.12);
+        }
+        #workers-list audio { width: 100%; border-radius: 8px; margin-top: 0.5rem; }
+        /* Job post section two-col on tablet+ */
+        @media (min-width: 768px) {
+            .job-post-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+            .job-post-grid .submit-btn { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased">
+
+    <!-- ═══ DESKTOP SIDEBAR ═══ -->
+    <aside class="vh-sidebar">
+        <div class="vh-sidebar-logo">
+            <span class="material-symbols-outlined logo-icon">settings_voice</span>
+            <span class="logo-text">VoiceHire</span>
+        </div>
+        <nav class="vh-sidebar-nav">
+            <button class="vh-nav-item active" onclick="window.location.href='/dashboard/user'">
+                <span class="material-symbols-outlined">home</span>
+                <span>{{ t('Home') }}</span>
+            </button>
+            <button class="vh-nav-item" onclick="document.getElementById('find-workers-section').scrollIntoView({behavior:'smooth'})">
+                <span class="material-symbols-outlined">person_search</span>
+                <span>{{ t('Find Workers') }}</span>
+            </button>
+            <button class="vh-nav-item" onclick="document.getElementById('post-job-section').scrollIntoView({behavior:'smooth'})">
+                <span class="material-symbols-outlined">add_task</span>
+                <span>{{ t('Post a Job') }}</span>
+            </button>
+        </nav>
+        <div class="vh-sidebar-footer">
+            <div class="vh-user-chip">
+                <div class="avatar"><span class="material-symbols-outlined text-sm">person</span></div>
+                <span class="user-name">{{ t('My Account') }}</span>
+            </div>
+            <button class="vh-nav-item" onclick="window.location.href='/logout'">
+                <span class="material-symbols-outlined">logout</span>
+                <span>{{ t('Sign Out') }}</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ═══ MAIN WRAPPER ═══ -->
+    <div class="vh-main">
+
+        <!-- Sticky Header -->
+        <header class="vh-header flex items-center justify-between px-4 sm:px-6">
+            <div class="flex items-center gap-2 vh-header-logo">
+                <span class="material-symbols-outlined text-secondary">settings_voice</span>
+                <span class="font-black text-lg tracking-tight">VoiceHire</span>
+            </div>
+            <!-- Desktop page title -->
+            <h1 class="hidden lg:block font-bold text-lg text-on-surface">{{ t('Customer Dashboard') }}</h1>
+            <div class="flex items-center gap-3">
+                <div id="google_translate_element" style="display:none"></div>
+                <button class="p-2 rounded-full hover:bg-slate-100 transition-colors lg:hidden" onclick="window.location.href='/logout'">
+                    <span class="material-symbols-outlined text-on-surface-variant">logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- ═══ PAGE CONTENT ═══ -->
+        <main class="vh-page-content flex flex-col gap-8">
+
+            <!-- Welcome Banner -->
+            <section class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-primary">{{ t('Welcome back! 👋') }}</h2>
+                    <p class="text-on-surface-variant text-base sm:text-lg mt-1">{{ t('What can we help you find today?') }}</p>
+                </div>
+                <span class="vh-badge-active self-start sm:self-auto">{{ t('Connected') }}</span>
+            </section>
+
+            <!-- Quick Stats Row (tablet/desktop) -->
+            <div class="hidden sm:grid sm:grid-cols-3 gap-4">
+                <div class="glass-panel rounded-xl p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-blue-600 text-xl">person_search</span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">{{ t('Workers Near You') }}</p>
+                        <p class="font-bold text-xl" id="stat-workers-count">—</p>
+                    </div>
+                </div>
+                <div class="glass-panel rounded-xl p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-green-600 text-xl">task_alt</span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">{{ t('Jobs Posted') }}</p>
+                        <p class="font-bold text-xl" id="stat-jobs-count">0</p>
+                    </div>
+                </div>
+                <div class="glass-panel rounded-xl p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-purple-600 text-xl">mic</span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">{{ t('Voice Ready') }}</p>
+                        <p class="font-bold text-lg text-green-600">{{ t('Active') }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Post a Job -->
+            <section id="post-job-section" class="glass-panel rounded-2xl p-5 sm:p-6 border-2 border-secondary/10">
+                <h3 class="font-bold text-xl mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-secondary">mic</span>
+                    {{ t('Post a Job Request') }}
+                </h3>
+                <form id="job-post-form" class="flex flex-col gap-4">
+                    <div class="job-post-grid">
+                        <input type="text" id="j-service" required
+                            placeholder="{{ t('Work Type') }}"
+                            class="w-full h-12 rounded-xl border-outline-variant focus:ring-secondary focus:border-secondary transition-all px-4"/>
+                        <input type="text" id="j-loc" required
+                            placeholder="{{ t('Location') }}"
+                            class="w-full h-12 rounded-xl border-outline-variant focus:ring-secondary focus:border-secondary transition-all px-4"/>
+                        <textarea id="j-desc" required
+                            placeholder="{{ t('Describe what needs to be done...') }}"
+                            class="w-full p-4 rounded-xl border-outline-variant focus:ring-secondary focus:border-secondary transition-all h-24 resize-none"></textarea>
+                        <button type="submit" class="submit-btn w-full h-14 bg-primary text-white rounded-xl font-bold hover:opacity-90 active:scale-[0.98] transition-all">
+                            {{ t('Post Job Request') }}
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- My Jobs Section -->
+            <section id="my-jobs-section" class="flex flex-col gap-5">
+                <div class="vh-section-header">
+                    <h3 class="text-2xl font-bold">{{ t('My Posted Jobs') }}</h3>
+                    <button onclick="app.fetchCustomerJobs()" class="p-2 h-10 w-10 flex items-center justify-center text-secondary hover:bg-secondary/5 rounded-lg transition-all border border-secondary/20" title="Refresh">
+                        <span class="material-symbols-outlined text-lg">refresh</span>
+                    </button>
+                </div>
+                <div id="my-jobs-list" class="grid sm:grid-cols-2 gap-4">
+                    <div class="col-span-full text-slate-400 italic py-6 text-center">
+                        <span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">task</span>
+                        {{ t('Loading your jobs...') }}
+                    </div>
+                </div>
+            </section>
+
+            <!-- Find Workers Section -->
+            <section id="find-workers-section" class="flex flex-col gap-5">
+                <div class="vh-section-header">
+                    <h3 class="text-2xl font-bold">{{ t('Find Local Workers') }}</h3>
+                    <div class="vh-search-row">
+                        <input type="text" id="u-service" placeholder="{{ t('Search by service...') }}"
+                            class="h-10 rounded-lg border-outline-variant text-sm focus:ring-secondary focus:border-secondary flex-1 min-w-[140px] px-3"/>
+                        <input type="text" id="u-location" placeholder="{{ t('Location...') }}"
+                            class="h-10 rounded-lg border-outline-variant text-sm focus:ring-secondary focus:border-secondary flex-1 min-w-[140px] px-3"/>
+                        <button onclick="app.fetchWorkers()"
+                            class="px-5 h-10 bg-secondary text-white rounded-lg text-sm font-bold hover:bg-secondary/90 transition-colors whitespace-nowrap">
+                            {{ t('Search') }}
+                        </button>
+                        <button onclick="app.fetchWorkers()"
+                            class="p-2 h-10 w-10 flex items-center justify-center text-secondary hover:bg-secondary/5 rounded-lg transition-all border border-secondary/20"
+                            title="{{ t('Refresh') }}">
+                            <span class="material-symbols-outlined text-lg">refresh</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="workers-list" class="vh-worker-grid">
+                    <div class="col-span-full text-slate-400 italic py-6 text-center">
+                        <span class="material-symbols-outlined text-4xl block mb-2 text-slate-300">person_search</span>
+                        {{ t('Loading workers...') }}
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div><!-- end .vh-main -->
+
+    <!-- ═══ MOBILE / TABLET BOTTOM NAV ═══ -->
+    <nav class="vh-bottom-nav">
+        <button class="vh-bottom-nav-item active">
+            <span class="material-symbols-outlined">home</span>
+            <span>{{ t('Home') }}</span>
+        </button>
+        <button class="vh-bottom-nav-item" onclick="document.getElementById('find-workers-section').scrollIntoView({behavior:'smooth'})">
+            <span class="material-symbols-outlined">person_search</span>
+            <span>{{ t('Find Workers') }}</span>
+        </button>
+        <button class="vh-bottom-nav-item" onclick="document.getElementById('post-job-section').scrollIntoView({behavior:'smooth'})">
+            <span class="material-symbols-outlined">add_task</span>
+            <span>{{ t('Post a Job') }}</span>
+        </button>
+        <button class="vh-bottom-nav-item" onclick="window.location.href='/logout'">
+            <span class="material-symbols-outlined">logout</span>
+            <span>{{ t('Sign Out') }}</span>
+        </button>
+    </nav>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            app.fetchWorkers();
+            app.fetchCustomerJobs();
+            // Update stats count after workers load
+            setTimeout(() => {
+                const cards = document.querySelectorAll('#workers-list .worker-card, #workers-list > div:not(.col-span-full)');
+                if (cards.length) document.getElementById('stat-workers-count').textContent = cards.length + '+';
+            }, 2000);
+        });
+        // Count job posts
+        let jobCount = 0;
+        const origForm = document.getElementById('job-post-form');
+        if (origForm) {
+            origForm.addEventListener('submit', () => {
+                jobCount++;
+                const el = document.getElementById('stat-jobs-count');
+                if (el) el.textContent = jobCount;
+            });
+        }
+    </script>
+</body>
+</html>
